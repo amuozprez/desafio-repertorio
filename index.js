@@ -4,40 +4,71 @@ const path = require("path");
 
 const app = express();
 
-// Middleware para procesar JSON, Mostrar la página web principal de la aplicación cuando se accede a la ruta raíz del servidor (/).
 app.use(express.json());
 
-// Ruta para devolver el archivo HTML
 const index = path.join(__dirname, "index.html");
 
-//Se utiliza para manejar la ruta principal ("/") de tu aplicación. Esta ruta responde a las solicitudes GET a la URL raíz (por ejemplo, http://localhost:3000/)
 app.get("/", (req, res) => {
     res.sendFile(index);
 });
 
-//GET /canciones: Devuelve todas las canciones almacenadas en el archivo
 app.get("/canciones", (req, res) => {
-    const canciones = JSON.parse(fs.readFileSync("repertorio.json", "utf8"));
-    res.json(canciones);
+    try {
+        const canciones = JSON.parse(fs.readFileSync("repertorio.json", "utf8"));
+        res.json(canciones);
+    } catch (error) {
+        res.status(500).json({ error: "Error al leer el archivo JSON" });
+    }
 });
 
-//POST /canciones: Añade una nueva canción al repertorio.
 app.post("/canciones", (req, res) => {
-    console.log(req.body);
+    try {
+        const canciones = JSON.parse(fs.readFileSync("repertorio.json", "utf8"));
+        const nuevaCancion = req.body;
+        canciones.push(nuevaCancion);
+
+        fs.writeFileSync("repertorio.json", JSON.stringify(canciones, null, 2));
+        res.status(201).json({ message: "Canción agregada", nuevaCancion });
+    } catch (error) {
+        res.status(500).json({ error: "Error al guardar la canción" });
+    }
 });
 
-//PUT /canciones/: Edita la canción con el ID proporcionado en la URL
 app.put("/canciones/:id", (req, res) => {
-    const {id} = req.params
+    try {
+        const { id } = req.params;
+        let canciones = JSON.parse(fs.readFileSync("repertorio.json", "utf8"));
+        const indice = canciones.findIndex(cancion => cancion.id == id);
+
+        if (indice !== -1) {
+            canciones[indice] = { ...canciones[indice], ...req.body };
+            fs.writeFileSync("repertorio.json", JSON.stringify(canciones, null, 2));
+            res.json({ message: "Canción actualizada", cancion: canciones[indice] });
+        } else {
+            res.status(404).json({ error: "Canción no encontrada" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: "Error al actualizar la canción" });
+    }
 });
 
-//DELETE /canciones/: Elimina la canción con el ID proporcionado.
 app.delete("/canciones/:id", (req, res) => {
-    const {id} = req.params
+    try {
+        const { id } = req.params;
+        let canciones = JSON.parse(fs.readFileSync("repertorio.json", "utf8"));
+        const nuevasCanciones = canciones.filter(cancion => cancion.id != id);
+
+        if (canciones.length === nuevasCanciones.length) {
+            return res.status(404).json({ error: "Canción no encontrada" });
+        }
+
+        fs.writeFileSync("repertorio.json", JSON.stringify(nuevasCanciones, null, 2));
+        res.json({ message: "Canción eliminada" });
+    } catch (error) {
+        res.status(500).json({ error: "Error al eliminar la canción" });
+    }
 });
 
-// Iniciar el servidor
-app.listen(3000, console.log("Servidor levantado en el puerto 3000!"));
-
-
-// Continuacion Cristian
+app.listen(3000, () => {
+    console.log("Servidor levantado en el puerto 3000!");
+});
